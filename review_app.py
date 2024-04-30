@@ -53,11 +53,13 @@ def calc_LCLCR(data, LCL):
 def calc_Cpk(data, USL, LSL):
     mean_value = statistics.mean(data)
     std_value = statistics.stdev(data)
-    if [USL, LSL] != [999999.0, -99999.0]:
+    if [USL, LSL] == [999999, -99999] or [USL, LSL] == [0, 0]:
+        Cpk = "-"
+    elif [USL, LSL] != [999999, -99999]:
         Cpk = min((USL-mean_value)/(3*std_value), (mean_value-LSL)/(3*std_value))
-    elif USL == 999999.0:
+    elif USL == 999999:
         Cpk = (mean_value-LSL)/(3*std_value)
-    elif LSL == -99999.0:
+    elif LSL == -99999:
         Cpk = (USL-mean_value)/(3*std_value)
     return Cpk
 
@@ -73,12 +75,11 @@ if uploaded_file is not None:
         # ロット重複削除（最終受入ロットを残す）
         df = df.drop_duplicates(subset="ロット", keep="last", ignore_index=True)
 
-        # 規格・管理値設定をしていない場合、nanにreplace。試行したがエラー発生。
-        # df["USL"] = df["USL"].replace(999999.0, np.nan)
-        # df["LSL"] = df["LSL"].replace(-99999.0, np.nan)
-        # df["UCL"] = df["UCL"].replace(999999.0, np.nan)
-        # df["LCL"] = df["LCL"].replace(-99999.0, np.nan)
-        # st.dataframe(df.head())    # 削除
+        # # 規格・管理値設定をしていない場合、nanにreplace。試行したがエラー発生。
+        # df["USL"] = df["USL"].replace(999999, "999999")
+        # df["LSL"] = df["LSL"].replace(-99999.0, "-99999")
+        # df["UCL"] = df["UCL"].replace(999999.0, "999999")
+        # df["LCL"] = df["LCL"].replace(-99999.0, "-99999")
 
         # 現行の管理値、CLCRを計算
         cur_USL = df["USL"].tail(1).iloc[0]
@@ -113,12 +114,13 @@ if uploaded_file is not None:
         # グラフY軸上下限の計算
         # 上下規格設定がない場合は実績最大値 or 新しい管理値の大きい方を取得
         # 上下規格設定がある場合は規格値を取得
-        if cur_USL == 999999.0:
+        # 現行の±3σ、規格値の最大も含めたいが999999 or -99999を拾ってきてしまうのでこれらを除く処理が一発必要
+        if cur_USL == 999999:
             y_axis_upper = max(max_value, new_UCL)
         else:
             y_axis_upper = cur_USL
         
-        if cur_LSL == -99999.0:
+        if cur_LSL == -99999:
             y_axis_lower = min(min_value, new_LCL)
         else:
             y_axis_lower = cur_LSL
@@ -155,7 +157,7 @@ if uploaded_file is not None:
         new_LCL_line = base.mark_line(color="red", strokeDash=[2,2]).encode(
             alt.Y("new_LCL:Q", scale=alt.Scale(domain=[y_axis_lower, y_axis_upper])))
         
-        st.dataframe(df.head())    # 削除
+        st.dataframe(df.tail(5))    # 削除
 
         # データを重ねる
         layer = alt.layer(chart, cur_UCL_line, cur_LCL_line, new_UCL_line, new_LCL_line)
@@ -181,15 +183,54 @@ if uploaded_file is not None:
             col1.metric('N', num)
             col1.metric('Average', round(avg,2))
             col1.metric('σ', round(std,2))
-            col1.metric("Cpk", round(Cpk, 2))
-            col2.metric('Current UCL', cur_UCL)
-            col2.metric('Current LCL', cur_LCL)
-            col2.metric('Current UCLCR', round(cur_UCLCR,1))
-            col2.metric('Current LCLCR', round(cur_LCLCR,1))
-            col3.metric('New UCL', formatted_new_UCL, help="初期値はAve + 3σ")
-            col3.metric('New LCL', formatted_new_LCL, help="初期値はAve - 3σ")
-            col3.metric('New UCLCR', round(new_UCLCR, 1), help="初期値は0.0")
-            col3.metric('New LCLCR', round(new_LCLCR, 1), help="初期値は0.0")
+            
+            # Cpk="-"の場合、"-"とする
+            # 現行のUCL/LCLが設定されていない場合、Cpk="-"になるようにdefで定義されている
+            if Cpk == "-":
+                col1.metric("Cpk", "-")
+            else:
+                col1.metric("Cpk", round(Cpk, 2))
 
-
-    
+            # 現行のUCL/LCLが設定されていない項目は"-"とする（計算はされている）
+            # UCL=999999, LCL=-99999
+            # UCL=0, LCL=0 (例：外観など)
+            if cur_UCL == 999999 or cur_UCL == 0:
+                col2.metric('Current UCL', "-")
+            else:
+                col2.metric('Current UCL', cur_UCL)
+            
+            if cur_LCL == -99999 or cur_LCL == 0:
+                col2.metric('Current LCL', "-")
+            else:
+                col2.metric('Current LCL', cur_LCL)
+            
+            if cur_UCL == 999999 or cur_UCL == 0:
+                col2.metric('Current UCLCR', "-")
+            else:
+                col2.metric('Current UCLCR', round(cur_UCLCR,1))
+                
+            if cur_LCL == -99999 or cur_LCL == 0:
+                col2.metric('Current LCLCR', "-")
+            else:
+                col2.metric('Current LCLCR', round(cur_LCLCR,1))
+            
+            # Average, σともに"0"の項目は"-"とする（計算はされている）
+            # UCL=0, LCL=0 (例：外観など)
+            if avg == 0 and std == 0:
+                col3.metric('New UCL', "-", help="初期値はAve + 3σ")
+                col3.metric('New LCL', "-", help="初期値はAve - 3σ")
+            else:
+                col3.metric('New UCL', formatted_new_UCL, help="初期値はAve + 3σ")
+                col3.metric('New LCL', formatted_new_LCL, help="初期値はAve - 3σ")
+            
+            # 新しいUCLCR/LCLCR="-"、つまりσ=0でCLCRが計算できない場合、"-"とする
+            # σ=0の時は、分母が0となるためCLCR="-"となるようにdefで定義している
+            if new_UCLCR == "-":
+                col3.metric('New UCLCR', "-", help="初期値は0.0")
+            else:
+                col3.metric('New UCLCR', round(new_UCLCR,1), help="初期値は0.0")
+            
+            if new_LCLCR == "-":
+                col3.metric('New LCLCR', "-", help="初期値は0.0")
+            else:
+                col3.metric('New LCLCR', round(new_LCLCR,1), help="初期値は0.0")
