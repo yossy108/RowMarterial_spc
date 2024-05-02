@@ -52,24 +52,24 @@ col3.metric("予想最大利益", f"{int(max_profit/1.0E+04)} 万円")
 # metric([指標名], [指標])
 
 # Altairによるグラフ作成のためのデータフレームを作成
-# df_earnings(予想売上)のデータフレームを作成する
+# df_uploaded_earnings(予想売上)のデータフレームを作成する
 # 空のデータフレームを作成
-df_earnings = pd.DataFrame()
+df_uploaded_earnings = pd.DataFrame()
 # ad_costカラムに「広告宣伝費」のリストdata_ad_costを挿入
-df_earnings["ad_cost"] = data_ad_cost
+df_uploaded_earnings["ad_cost"] = data_ad_cost
 # valueカラムに「予想売上のリスト」data_earningsを挿入
-df_earnings["value"] = data_earnings
+df_uploaded_earnings["value"] = data_earnings
 # indicatorカラムに「売上」という文字列を挿入
-df_earnings["indicator"] = "売上"
+df_uploaded_earnings["indicator"] = "売上"
 
-# 同様の流れでdf_profit(予想利益)のデータフレームを作成する
-df_profit = pd.DataFrame()
-df_profit["ad_cost"] = data_ad_cost
-df_profit["value"] = data_profit
-df_profit["indicator"] = "利益"
+# 同様の流れでdf_uploaded_profit(予想利益)のデータフレームを作成する
+df_uploaded_profit = pd.DataFrame()
+df_uploaded_profit["ad_cost"] = data_ad_cost
+df_uploaded_profit["value"] = data_profit
+df_uploaded_profit["indicator"] = "利益"
 
-# データフレームの結合（df_earningsとdf_profitを縦に結合）
-df = pd.concat([df_earnings, df_profit])
+# データフレームの結合（df_uploaded_earningsとdf_uploaded_profitを縦に結合）
+df = pd.concat([df_uploaded_earnings, df_uploaded_profit])
 df["value"] = df["value"]/1.0E+04
 
 # Altairによるグラフ設定
